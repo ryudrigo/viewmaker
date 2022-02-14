@@ -128,13 +128,15 @@ def save_activation(name):
 class Ranking (pl.LightningModule):
     def __init__(self):
         super().__init__()
+        self.batch_size=128
         self.backbone = self.load_backbone()
         self.hooks = {}
         for name, module in self.backbone.named_modules():
             self.hooks[name] = module.register_forward_hook(save_activation(name))
-        self.linear = torch.nn.Linear(122*64, 2)
+        self.linear = torch.nn.Linear(122*64, 1)
         self.flatten = torch.nn.Flatten()
         self.writer = SummaryWriter()
+        
     
     def load_backbone(self):
         config_json = utils.load_json("ryudrigo/config.json")
@@ -183,12 +185,12 @@ class Ranking (pl.LightningModule):
             act = torch.cat((act1, act2))
             which_layer+=which_layer #duplicate the entries so which_layer[i] corresponds to act[i]
             if angle1>angle2: 
-                one_img_y.append(1)
+                one_img_y.append(1.)
             else: #angles will never be equal becasue they need a difference larger than 5
-                one_img_y.append(0)
+                one_img_y.append(0.)
             one_img_x.append(act)
             one_img_x=torch.cat(one_img_x)
-            one_img_y=torch.tensor(one_img_y)
+            one_img_y=torch.as_tensor(one_img_y,device=torch.device('cuda'))
             x.append(torch.unsqueeze(one_img_x, 0))
             y.append(torch.unsqueeze(one_img_y,0))
         x = torch.cat(x)
@@ -201,19 +203,38 @@ class Ranking (pl.LightningModule):
         return y_hat
         
     def training_step(self, batch, batch_idx):
-        #this has not been tested in current commit!
-        x, y = batch
+        x, _ = batch
+        x, y, _, _, _ = self.generate_backbone_activations(x)
         y_hat = self(x)
         loss = F.cross_entropy(y_hat, y)
         self.writer.add_scalar('Loss/train', loss, self.current_epoch*self.batch_size+batch_idx)
         return loss
         
-    #write validation step!
+    def validation_step(self, batch, batch_idx):
+        x, _ = batch
+        x, y, _, _, _ = self.generate_backbone_activations(x)
+        y_hat = self(x)
+        loss = F.cross_entropy(y_hat, y)
+        self.writer.add_scalar('Loss/val', loss, self.current_epoch*self.batch_size+batch_idx)
+        
+        pred= torch.argmax(y_hat, dim=1)
+        acc = torch.sum(y == pred).item() / (len(y) * 1.0)
+        self.writer.add_scalar('Val/acc', acc, self.current_epoch*self.batch_size+batch_idx)
+        return loss
+    
+    def train_dataloader(self):
+        dataset = FFHQThumbDataset('data/ffhq-thumb')
+        return DataLoader(dataset, num_workers=6, batch_size=self.batch_size, collate_fn=my_collate)
+   
+    def val_dataloader(self):
+        dataset = FFHQThumbDataset('data/ffhq-thumb', train=False)
+        return DataLoader(dataset, num_workers=6, batch_size=self.batch_size, collate_fn=my_collate)
+    
+    def configure_optimizers(self):
+        optim = torch.optim.Adam(self.parameters(), lr=1e-3)
+        return optim
     
 if __name__ == "__main__":
     trainer = pl.Trainer(gpus='0', max_epochs=50)
-    #change the following!
-    config_json = utils.load_json("ryudrigo/config.json")
-    config = DotMap(config_json)
-    model = Backbone(config)
+    model = Ranking()
     trainer.fit (model)
