@@ -1,12 +1,12 @@
 import os
 from copy import deepcopy
-from src.systems import systems
+from src.systems import image_systems
 from src.utils.utils import load_json
 from src.utils.setup import process_config
 from src.utils.callbacks import MoCoLRScheduler
 import random, torch, numpy
 
-import wandb
+#import wandb
 import pytorch_lightning as pl
 
 SYSTEM = {
@@ -32,12 +32,8 @@ def run(args, gpu_device=None):
     '''
     if gpu_device == 'cpu' or not gpu_device:
         gpu_device = None
-    # --- custom
     config = process_config(args.config, exp_name_suffix=args.dataset)
-    config.data_params.dataset = args.dataset
-    if args.test:  # as a test just run for 1 epoch
-        config.num_epochs = 1
-    # ---
+    
     # Only override if specified.
     if gpu_device: config.gpu_device = gpu_device
     if args.num_workers: config.data_loader_workers = args.num_workers
@@ -62,9 +58,9 @@ def run(args, gpu_device=None):
     ckpt_callback = pl.callbacks.ModelCheckpoint(
         os.path.join(config.exp_dir, 'checkpoints'),
         save_top_k=-1,
-        period=1,
+        period=10,
     )
-    wandb.init(project='image', entity='viewmaker', name=config.exp_name, config=config, sync_tensorboard=True)
+    #wandb.init(project='image', entity='viewmaker', name=config.exp_name, config=config, sync_tensorboard=True)
     trainer = pl.Trainer(
         default_root_dir=config.exp_dir,
         gpus=gpu_device,

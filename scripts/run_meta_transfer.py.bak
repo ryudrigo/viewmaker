@@ -6,14 +6,10 @@ from src.utils.setup import process_config
 from src.utils.callbacks import MoCoLRScheduler
 import random, torch, numpy
 
+#import wandb
 import pytorch_lightning as pl
-import wandb
-
-torch.backends.cudnn.benchmark = True
 
 SYSTEM = {
-    'PretrainViewMakerSystem': image_systems.PretrainViewMakerSystem,
-    'PretrainExpertSystem': image_systems.PretrainExpertSystem,
     'TransferViewMakerSystem': image_systems.TransferViewMakerSystem,
     'TransferExpertSystem': image_systems.TransferExpertSystem,
 }
@@ -32,12 +28,16 @@ def run(args, gpu_device=None):
             '0': GPU 0
             '4': GPU 4
             '0,3' GPUs 1 and 3
-            See the following for more options: 
-            https://pytorch-lightning.readthedocs.io/en/latest/multi_gpu.html
+            See: https://pytorch-lightning.readthedocs.io/en/latest/multi_gpu.html
     '''
     if gpu_device == 'cpu' or not gpu_device:
         gpu_device = None
-    config = process_config(args.config)
+    # --- custom
+    config = process_config(args.config, exp_name_suffix=args.dataset)
+    config.data_params.dataset = args.dataset
+    if args.test:  # as a test just run for 1 epoch
+        config.num_epochs = 1
+    # ---
     # Only override if specified.
     if gpu_device: config.gpu_device = gpu_device
     if args.num_workers: config.data_loader_workers = args.num_workers
@@ -62,15 +62,15 @@ def run(args, gpu_device=None):
     ckpt_callback = pl.callbacks.ModelCheckpoint(
         os.path.join(config.exp_dir, 'checkpoints'),
         save_top_k=-1,
-        period=5,
+        period=10,
     )
-    wandb.init(project='darth-raquel', entity='rodrigo-mello', name=config.exp_name, config=config,settings=wandb.Settings(_disable_stats=True), sync_tensorboard=True)
+    #wandb.init(project='image', entity='viewmaker', name=config.exp_name, config=config, sync_tensorboard=True)
     trainer = pl.Trainer(
         default_root_dir=config.exp_dir,
         gpus=gpu_device,
          # 'ddp' is usually faster, but we use 'dp' so the negative samples 
          # for the whole batch are used for the SimCLR loss
-        # distributed_backend=config.distributed_backend or 'dp',
+        distributed_backend=config.distributed_backend or 'dp',
         max_epochs=config.num_epochs,
         min_epochs=config.num_epochs,
         checkpoint_callback=ckpt_callback,
@@ -95,14 +95,18 @@ def seed_everything(seed):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('config', type=str, default='path to config file')
+    parser.add_argument('config', type=str, help='path to config file')
+    parser.add_argument('--dataset', type=str, help='which meta dataset',
+                         choices=['meta_aircraft', 'meta_cu_birds', 'meta_dtd',
+                                  'meta_fashionmnist', 'meta_fungi', 'meta_mnist',
+                                  'meta_mscoco', 'meta_traffic_sign', 'meta_vgg_flower'])
     parser.add_argument('--gpu-device', type=str, default=None)
     parser.add_argument('--profiler', action='store_true')
     parser.add_argument('--ckpt', type=str, default=None)
     parser.add_argument('--num_workers', type=int, default=None)
+    parser.add_argument('--test', action='store_true', default=False)
     args = parser.parse_args()
 
     # Ensure it's a string, even if from an older config
     gpu_device = str(args.gpu_device) if args.gpu_device else None
     run(args, gpu_device=gpu_device)
-

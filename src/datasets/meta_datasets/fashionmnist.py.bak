@@ -47,7 +47,8 @@ class BaseFashionMNIST(data.Dataset):
             os.makedirs(root)
         self.image_transforms = image_transforms
         self.dataset = datasets.mnist.FashionMNIST(
-            root,
+            root, 
+            download=True,
             train=train,
             download=True,
         )

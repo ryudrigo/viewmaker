@@ -1,0 +1,10 @@
+tasks
+
+OK	make a function that, from an image, samples two random numbers (far enough from each other) and returns two augmented versions
+OK	expose backbone's intermediate activations
+	complete RankingAndBackbone`s forward step by passing the two versions through the backbone and using the intermediate activations for the ranking layer to guess which image is more augmented
+	complete RankingAndBackbone`s training and validation(?) steps
+	extract relevance information from the ranking model (multiply the standard deviation and activations?)
+	do some sanity tests
+	replace the augmentation for class-specific information and see what happens
+		

@@ -1,0 +1,28 @@
+{
+    "exp_base": "experiments-1984",
+    "exp_name": "transfer_viewmaker_cifar_simclr_resnet18",
+    "system": "TransferViewMakerSystem",
+    "cuda": true,
+    "gpu_device": 0,
+    "seed": 1332,
+    "data_loader_workers": 12,
+    "data_params": {
+        "dataset": "meta_fashionmnist"
+    },
+    "pretrain_model": {
+        "exp_dir": "pretrain_viewmaker_cifar_simclr_resnet18",
+        "checkpoint_name": "epoch=90.ckpt"
+    },
+    "optim_params": {
+        "batch_size": 128,
+        "learning_rate": 0.01,
+        "momentum": 0.9,
+        "weight_decay": 1e-4,
+        "validate_freq": 1,
+        "patience": 10
+    },
+    "num_epochs": 3,
+    "validate": true,
+    "copy_checkpoint_freq": 1,
+    "continue_from_checkpoint": null
+}

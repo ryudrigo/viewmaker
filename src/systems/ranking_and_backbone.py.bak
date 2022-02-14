@@ -1,0 +1,190 @@
+import torchvision.models as models
+import torchvision.transforms as T
+from PIL import Image
+
+
+class ClassifierWithViewmakerAugmentation(pl.LightningModule):
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.batch_size = config.optim_params.batch_size
+        self.viewmaker, self.pretrain_config = self.load_pretrained_model()
+        
+        self.train_dataset, self.val_dataset = datasets.get_image_datasets(
+            config.data_params.dataset,
+            default_augmentations='all'
+        )
+        
+        self.viewmaker = self.viewmaker.eval()
+        utils.frozen_params(self.viewmaker)
+
+        self.backbone_feature_extractor, self.backbone_classifier = self.create_backbone()
+        
+        self.transform = T.ToPILImage()
+
+    def load_pretrained_model(self):
+        pretrained_dir = self.config.pretrain_model.exp_dir
+        checkpoint_name = self.config.pretrain_model.checkpoint_name
+
+        config_path = os.path.join(pretrained_dir, 'config.json')
+        config_json = utils.load_json(config_path)
+        config = DotMap(config_json)
+       
+        SystemClass = globals()[config.system]
+        system = SystemClass(config)
+        checkpoint_file = os.path.join(pretrained_dir, 'checkpoints', checkpoint_name)
+        checkpoint = torch.load(checkpoint_file, map_location=self.device)
+        system.load_state_dict(checkpoint['state_dict'], strict=False)
+        
+        viewmaker = system.viewmaker.eval()
+
+        return viewmaker, system.config
+
+    def create_backbone(self):
+        num_classes = self.train_dataset.NUM_CLASSES
+        backbone = models.resnet18(pretrained=True)
+        num_filters = backbone.fc.in_features
+        layers = list(backbone.children())[:-1]
+        feature_extractor = nn.Sequential (*layers)
+        classifier = nn.Linear (num_filters,num_classes) 
+        
+    def forward(self, img, valid=False):
+        self.backbone_feature_extractor.eval()
+        img-one = self.transform(img[0])
+        img = self.viewmaker(img)
+        img-two = self.transform(img[0])
+        img-one.save('img-one.jpg')
+        img-two.save('img-two.jpg')
+        exit(42)
+        with torch.no_grad():
+            representations = self.backbone_feature_extractor(img).flatten(1)
+        x = self.backbone_classifier(representations)
+        return x
+        
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self.forward(x)
+        loss = F.cross_entropy(y_hat, y)
+        return loss
+        
+        
+    def get_losses_for_batch(self, batch, valid=False):
+        '''
+        _, img, _, _, label = batch
+        logits = self.forward(img, valid)
+        if self.train_dataset.MULTI_LABEL:
+            return F.binary_cross_entropy(torch.sigmoid(logits).view(-1), 
+                                          label.view(-1).float())
+        else:
+            return F.cross_entropy(logits, label)
+        '''
+    def get_accuracies_for_batch(self, batch, valid=False):
+        '''
+        _, img, _, _, label = batch
+        batch_size = img.size(0)
+        logits = self.forward(img, valid)
+        if self.train_dataset.MULTI_LABEL:
+            preds = torch.round(torch.sigmoid(logits))
+            preds = preds.long().cpu()
+            num_correct = torch.sum(preds.cpu() == label.cpu(), dim=0)
+            num_correct = num_correct.detach().cpu().numpy()
+            num_total = batch_size
+            return num_correct, num_total, preds, label.cpu()
+        else:
+            preds = torch.argmax(F.log_softmax(logits, dim=1), dim=1)
+            preds = preds.long().cpu()
+            num_correct = torch.sum(preds == label.long().cpu()).item()
+            num_total = batch_size
+            return num_correct, num_total
+        '''
+    
+        
+    def validation_step(self, batch, batch_idx):
+        '''
+        loss = self.get_losses_for_batch(batch, valid=True)
+        if self.train_dataset.MULTI_LABEL:  # regardless if binary or not
+            num_correct, num_total, val_preds, val_labels = \
+                self.get_accuracies_for_batch(batch, valid=True)
+            return OrderedDict({
+                'val_loss': loss,
+                'val_num_correct': torch.tensor(num_correct, dtype=float, device=self.device),
+                'val_num_total': torch.tensor(num_total, dtype=float, device=self.device),
+                'val_acc': torch.tensor(num_correct / float(num_total), dtype=float, device=self.device),
+                'val_pred_labels': val_preds.float(),
+                'val_true_labels': val_labels.float(),
+            })
+        else:
+            num_correct, num_total = self.get_accuracies_for_batch(batch, valid=True)
+            return OrderedDict({
+                'val_loss': loss,
+                'val_num_correct': torch.tensor(num_correct, dtype=float, device=self.device),
+                'val_num_total': torch.tensor(num_total, dtype=float, device=self.device),
+                'val_acc': torch.tensor(num_correct / float(num_total), dtype=float, device=self.device),
+            })
+        '''
+    def validation_epoch_end(self, outputs):
+        '''
+        metrics = {}
+        for key in outputs[0].keys():
+            try:
+                metrics[key] = torch.tensor([elem[key] for elem in outputs]).float().mean()
+            except:
+                pass
+        
+        if self.train_dataset.MULTI_LABEL:
+            num_correct = torch.stack([out['val_num_correct'] for out in outputs], dim=1).sum(1)
+            num_total = torch.stack([out['val_num_total'] for out in outputs]).sum()
+            val_acc = num_correct / float(num_total)
+            metrics['val_acc'] = val_acc.mean()
+            progress_bar = {'acc': val_acc.mean()}
+            num_class = self.train_dataset.NUM_CLASSES
+            for c in range(num_class):
+                val_acc_c = num_correct[c] / float(num_total)
+                metrics[f'val_acc_feat{c}'] = val_acc_c
+            val_pred_labels = torch.cat([out['val_pred_labels'] for out in outputs], dim=0).numpy()
+            val_true_labels = torch.cat([out['val_true_labels'] for out in outputs], dim=0).numpy()
+        
+            val_f1 = 0
+            for c in range(num_class):
+                val_f1_c = f1_score(val_true_labels[:, c], val_pred_labels[:, c])
+                metrics[f'val_f1_feat{c}'] = val_f1_c
+                val_f1 = val_f1 + val_f1_c
+            val_f1 = val_f1 / float(num_class)
+            metrics['val_f1'] = val_f1
+            progress_bar['f1'] = val_f1
+            return {'val_loss': metrics['val_loss'], 
+                    'log': metrics,
+                    'val_acc': val_acc, 
+                    'val_f1': val_f1,
+                    'progress_bar': progress_bar}
+        else:
+            num_correct = sum([out['val_num_correct'] for out in outputs])
+            num_total = sum([out['val_num_total'] for out in outputs])
+            val_acc = num_correct / float(num_total)
+            metrics['val_acc'] = val_acc
+            progress_bar = {'acc': val_acc}
+            return {'val_loss': metrics['val_loss'], 
+                    'log': metrics, 
+                    'val_acc': val_acc,
+                    'progress_bar': progress_bar}
+
+    def configure_optimizers(self):
+        params_iterator = self.model.parameters()
+        if self.config.optim_params == 'adam':
+            optim = torch.optim.Adam(params_iterator)
+        else:
+            optim = torch.optim.SGD(
+                params_iterator,
+                lr=self.config.optim_params.learning_rate,
+                momentum=self.config.optim_params.momentum,
+                weight_decay=self.config.optim_params.weight_decay,
+            )
+        return [optim], []
+        '''
+    def train_dataloader(self):
+        return create_dataloader(self.train_dataset, self.config, self.batch_size)
+
+    def val_dataloader(self):
+        return create_dataloader(self.val_dataset, self.config, self.batch_size, 
+                                 shuffle=False, drop_last=False)

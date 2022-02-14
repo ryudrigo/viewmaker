@@ -31,7 +31,7 @@
         "patience": 1000,
         "num_view_update": 1
     },
-    "num_epochs": 200,
+    "num_epochs": 2,
     "validate": true,
     "copy_checkpoint_freq": 5,
     "continue_from_checkpoint": null

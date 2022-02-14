@@ -336,8 +336,7 @@ class PretrainViewMakerSystem(pl.LightningModule):
     def val_dataloader(self):
         return create_dataloader(self.val_dataset, self.config, self.batch_size, 
                                  shuffle=False, drop_last=False)
-    def viewmaker_example(self, img):
-        return self.viewmaker(img)
+
 
 class PretrainExpertSystem(PretrainViewMakerSystem):
     '''Pytorch Lightning System for self-supervised pretraining 

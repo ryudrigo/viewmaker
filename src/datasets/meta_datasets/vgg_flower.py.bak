@@ -55,7 +55,7 @@ class BaseVGGFlower(data.Dataset):
         self.image_transforms = image_transforms
         self.dataset = datasets.Flowers102(
             root,
-            split='val',
+            split='val'
             download=True,
         )
 

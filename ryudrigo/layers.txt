@@ -1,0 +1,68 @@
+-> backbone_feature_extractor.0
+backbone_feature_extractor.1
+backbone_feature_extractor.2
+backbone_feature_extractor.3
+-> backbone_feature_extractor.4.0.conv1
+backbone_feature_extractor.4.0.bn1
+backbone_feature_extractor.4.0.relu
+-> backbone_feature_extractor.4.0.conv2
+backbone_feature_extractor.4.0.bn2
+backbone_feature_extractor.4.0
+-> backbone_feature_extractor.4.1.conv1
+backbone_feature_extractor.4.1.bn1
+backbone_feature_extractor.4.1.relu
+-> backbone_feature_extractor.4.1.conv2
+backbone_feature_extractor.4.1.bn2
+backbone_feature_extractor.4.1
+backbone_feature_extractor.4
+-> backbone_feature_extractor.5.0.conv1
+backbone_feature_extractor.5.0.bn1
+backbone_feature_extractor.5.0.relu
+-> backbone_feature_extractor.5.0.conv2
+backbone_feature_extractor.5.0.bn2
+backbone_feature_extractor.5.0.downsample.0
+backbone_feature_extractor.5.0.downsample.1
+backbone_feature_extractor.5.0.downsample
+backbone_feature_extractor.5.0
+-> backbone_feature_extractor.5.1.conv1
+backbone_feature_extractor.5.1.bn1
+backbone_feature_extractor.5.1.relu
+-> backbone_feature_extractor.5.1.conv2
+backbone_feature_extractor.5.1.bn2
+backbone_feature_extractor.5.1
+backbone_feature_extractor.5
+-> backbone_feature_extractor.6.0.conv1
+backbone_feature_extractor.6.0.bn1
+backbone_feature_extractor.6.0.relu
+-> backbone_feature_extractor.6.0.conv2
+backbone_feature_extractor.6.0.bn2
+backbone_feature_extractor.6.0.downsample.0
+backbone_feature_extractor.6.0.downsample.1
+backbone_feature_extractor.6.0.downsample
+backbone_feature_extractor.6.0
+-> backbone_feature_extractor.6.1.conv1
+backbone_feature_extractor.6.1.bn1
+backbone_feature_extractor.6.1.relu
+-> backbone_feature_extractor.6.1.conv2
+backbone_feature_extractor.6.1.bn2
+backbone_feature_extractor.6.1
+backbone_feature_extractor.6
+-> backbone_feature_extractor.7.0.conv1
+backbone_feature_extractor.7.0.bn1
+backbone_feature_extractor.7.0.relu
+-> backbone_feature_extractor.7.0.conv2
+backbone_feature_extractor.7.0.bn2
+backbone_feature_extractor.7.0.downsample.0
+backbone_feature_extractor.7.0.downsample.1
+backbone_feature_extractor.7.0.downsample
+backbone_feature_extractor.7.0
+-> backbone_feature_extractor.7.1.conv1
+backbone_feature_extractor.7.1.bn1
+backbone_feature_extractor.7.1.relu
+-> backbone_feature_extractor.7.1.conv2
+backbone_feature_extractor.7.1.bn2
+backbone_feature_extractor.7.1
+backbone_feature_extractor.7
+backbone_feature_extractor.8
+backbone_feature_extractor
+backbone_classifier

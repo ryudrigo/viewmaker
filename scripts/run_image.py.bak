@@ -62,7 +62,7 @@ def run(args, gpu_device=None):
     ckpt_callback = pl.callbacks.ModelCheckpoint(
         os.path.join(config.exp_dir, 'checkpoints'),
         save_top_k=-1,
-        period=5,
+        period=1,
     )
     wandb.init(project='darth-raquel', entity='rodrigo-mello', name=config.exp_name, config=config,settings=wandb.Settings(_disable_stats=True), sync_tensorboard=True)
     trainer = pl.Trainer(

@@ -14,6 +14,5 @@ old_examples/
 pretrain_viewmaker_cifar_simclr_resnet18/
 pretrained_ckpts/
 runs/
-lightning_logs/
 .bak
 __pycache__

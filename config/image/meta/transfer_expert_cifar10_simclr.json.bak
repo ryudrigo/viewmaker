@@ -21,7 +21,7 @@
         "validate_freq": 1,
         "patience": 10
     },
-    "num_epochs": 100,
+    "num_epochs": 7,
     "validate": true,
     "copy_checkpoint_freq": 5,
     "continue_from_checkpoint": null

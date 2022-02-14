@@ -52,6 +52,7 @@ class BaseDTD(data.Dataset):
         self.image_transforms = image_transforms
         self.dataset = datasets.DTD(
             root,
+            train=train,
             download=True,
         )
 
