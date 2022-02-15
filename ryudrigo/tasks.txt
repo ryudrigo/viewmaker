@@ -4,8 +4,8 @@ OK	make a function that, from an image, samples two random numbers (far enough f
 OK	expose backbone's intermediate activations
 OK	complete RankingAndBackbone`s forward step by passing the two versions through the backbone and using the intermediate activations for the ranking layer to guess which image is more augmented
 OK	complete RankingAndBackbone`s training and validation steps
-	make it train faster!
+OK	make it train faster!
+OK	do some sanity tests
 	extract relevance information from the ranking model (multiply the standard deviation and activations?)
-	do some sanity tests
-	replace the augmentation for class-specific information and see what happens
+	replace the augmentation with class-specific information and see what happens
 		

@@ -1,4 +1,5 @@
 import pytorch_lightning as pl
+import math
 import torchvision.models as models
 import torchvision.transforms as T
 from PIL import Image
@@ -17,6 +18,8 @@ from torch.utils.tensorboard import SummaryWriter
 from ryudrigo.custom_datasets import FFHQThumbDataset
 import torchvision.transforms.functional as TF
 import random
+
+
 
 def my_collate(batch):
     # item: a tuple of (img, label)
@@ -119,11 +122,7 @@ class Backbone(pl.LightningModule):
         self.writer.add_scalar('Val/acc', acc, self.current_epoch*self.batch_size+batch_idx)
         return {"loss": loss}
 
-activations={}
-def save_activation(name):
-    def activations_hook(module, act_in, act_out):
-        activations[name]=act_out.detach()
-    return activations_hook
+
     
 class Ranking (pl.LightningModule):
     def __init__(self):
@@ -132,70 +131,82 @@ class Ranking (pl.LightningModule):
         self.backbone = self.load_backbone()
         self.hooks = {}
         for name, module in self.backbone.named_modules():
-            self.hooks[name] = module.register_forward_hook(save_activation(name))
-        self.linear = torch.nn.Linear(122*64, 1)
+            self.hooks[name] = module.register_forward_hook(self.save_activation(name))
+        self.linear = torch.nn.Linear(61*64*2, 1)
         self.flatten = torch.nn.Flatten()
         self.writer = SummaryWriter()
-        
+        self.many_activations=[]
+        self.first_layer_name = 'backbone_feature_extractor.0'
     
+    def save_activation(self, name):
+        def activations_hook(module, act_in, act_out):
+            if self.first_layer_name in name:
+                self.many_activations.append ({})
+            self.many_activations[-1][name]=act_out.detach()
+        return activations_hook
+        
     def load_backbone(self):
         config_json = utils.load_json("ryudrigo/config.json")
         config = DotMap(config_json)
-        checkpoint = torch.load("lightning_logs/version_58/checkpoints/epoch=199.ckpt")
+        checkpoint = torch.load("lightning_logs/version_1/checkpoints/epoch=17.ckpt")
         backbone_model = Backbone(config)
         backbone_model.load_state_dict(checkpoint['state_dict'], strict=False)
         utils.frozen_params(backbone_model)
         return backbone_model
         
     def get_activations(self):
-        list_of_names = ['backbone_feature_extractor.0']
-        list_of_acts = [activations[list_of_names[0]].mean(dim=(-2, -1))]
-        for ra, name in enumerate(list(activations.keys())):
-            if 'conv' in name:
-                num_of_feat_maps = activations[name].shape[-3]
-                act = activations[name].mean(dim=(-2, -1))
-                act=torch.chunk(act, num_of_feat_maps//64, dim=-1)
-                list_of_acts+=act
-                for _ in range (num_of_feat_maps//64):
-                    list_of_names.append(name)
-                
-        return torch.cat(list_of_acts), list_of_names
-        
+        big_list_of_acts=[]
+        list_of_names=[] #this is for pairing up activations and their layers.
+        for activations in self.many_activations:
+            list_of_acts = [activations[self.first_layer_name].mean(dim=(-2, -1))]
+            for ra, name in enumerate(list(activations.keys())):
+                if 'conv' in name:
+                    num_of_feat_maps = activations[name].shape[-3]
+                    act = activations[name].mean(dim=(-2, -1))
+                    act=torch.chunk(act, num_of_feat_maps//64, dim=-1)
+                    list_of_acts+=act
+                    if len(list_of_names)<61: #there are 61 layer chunks in total
+                        list_of_names.append(name)
+            list_of_acts = torch.cat(list_of_acts, dim=1)
+            big_list_of_acts.append (list_of_acts)
+        answer = torch.stack(big_list_of_acts)
+        #the following reorganizes the tensor so that first dimension is batch_size, second dimension is the pair of input examples and third dimension is the flattened backbone activation data
+        #because shape of answer is (2, batch_size, 61*64)
+        #2 comes from the two images, each with an augmentation
+        #61 comes from 61 convolutional layers (some of the original 17 were broken in chunks)
+        #64 comes from the number of channels
+        answer= answer.permute((1,0, 2))
+        self.many_activations=[]
+        return answer, list_of_names #list_of_names can be used when loding model from another script
+    
     def generate_backbone_activations(self, imgs):
         x=[]
         y=[]
         imgs1=[]
         imgs2=[]
-        for img in imgs:
-            one_img_x = []
-            one_img_y = []            
-            angle1=0
-            angle2=0
-            while (abs(angle1-angle2)<5):
-                angle1 = random.randint(-40, 40)
-                angle2 = random.randint(-40, 40)
-            img1 = TF.rotate(img, angle1, expand=True)
-            img2 = TF.rotate(img, angle2, expand=True)
+        for img in imgs:          
+            aug_value1=0
+            aug_value2=0
+            while (abs(aug_value1-aug_value2)<0.2):
+                aug_value1 = random.uniform(0.5, 1.5)
+                aug_value2 = random.uniform(0.5, 1.5)
+            img1 = TF.adjust_contrast(img, aug_value1)
+            img2 = TF.adjust_contrast(img, aug_value2)            
             imgs1.append(img1)
             imgs2.append(img2)
-            self.backbone(torch.unsqueeze(img1, 0))
-            act1, _ = self.get_activations()
-            self.backbone(torch.unsqueeze(img2, 0))
-            act2, which_layer = self.get_activations() #which layer can come from act1 or act2, they're equal
-            act = torch.cat((act1, act2))
-            which_layer+=which_layer #duplicate the entries so which_layer[i] corresponds to act[i]
-            if angle1>angle2: 
-                one_img_y.append(1.)
+            if aug_value1>aug_value2: 
+                y.append(1.)
             else: #angles will never be equal becasue they need a difference larger than 5
-                one_img_y.append(0.)
-            one_img_x.append(act)
-            one_img_x=torch.cat(one_img_x)
-            one_img_y=torch.as_tensor(one_img_y,device=torch.device('cuda'))
-            x.append(torch.unsqueeze(one_img_x, 0))
-            y.append(torch.unsqueeze(one_img_y,0))
-        x = torch.cat(x)
-        y = torch.cat(y)
-        return x, y, which_layer, imgs1, imgs2 #returns images for debugging purposes
+                y.append(0.)
+        imgs1 = torch.stack(imgs1)
+        imgs2 = torch.stack(imgs2)
+        self.backbone(imgs1)
+        self.backbone(imgs2)
+        act, _ = self.get_activations() #which layer can come from act1 or act2, they're equal
+        y=torch.as_tensor(y,device=torch.device('cuda'))
+        y = torch.unsqueeze(y, dim=1)
+        x=act
+        return x, y, imgs1, imgs2 #returns images for debugging purposes
         
     def forward(self, backbone_activations):
         backbone_activations = self.flatten(backbone_activations)
@@ -204,23 +215,25 @@ class Ranking (pl.LightningModule):
         
     def training_step(self, batch, batch_idx):
         x, _ = batch
-        x, y, _, _, _ = self.generate_backbone_activations(x)
+        x, y, _, _ = self.generate_backbone_activations(x)
         y_hat = self(x)
-        loss = F.cross_entropy(y_hat, y)
+        loss = F.binary_cross_entropy(y_hat, y)
         self.writer.add_scalar('Loss/train', loss, self.current_epoch*self.batch_size+batch_idx)
         return loss
         
     def validation_step(self, batch, batch_idx):
         x, _ = batch
-        x, y, _, _, _ = self.generate_backbone_activations(x)
+        x, y, _, _ = self.generate_backbone_activations(x)
         y_hat = self(x)
-        loss = F.cross_entropy(y_hat, y)
+        loss = F.binary_cross_entropy(y_hat, y)
         self.writer.add_scalar('Loss/val', loss, self.current_epoch*self.batch_size+batch_idx)
         
-        pred= torch.argmax(y_hat, dim=1)
-        acc = torch.sum(y == pred).item() / (len(y) * 1.0)
+        pred = [math.floor(x+0.5) for x in y_hat]
+        correct_pred = sum([float(a==b) for a, b in zip (pred, y)])
+        acc = correct_pred / (len(y) * 1.0)
         self.writer.add_scalar('Val/acc', acc, self.current_epoch*self.batch_size+batch_idx)
-        return loss
+        self.writer.add_scalar('Val/mean_pred', sum(pred)/len(pred), self.current_epoch*self.batch_size+batch_idx)
+        return {"loss": loss}
     
     def train_dataloader(self):
         dataset = FFHQThumbDataset('data/ffhq-thumb')
@@ -235,6 +248,6 @@ class Ranking (pl.LightningModule):
         return optim
     
 if __name__ == "__main__":
-    trainer = pl.Trainer(gpus='0', max_epochs=50)
+    trainer = pl.Trainer(gpus='0', max_epochs=5)
     model = Ranking()
     trainer.fit (model)

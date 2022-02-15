@@ -15,7 +15,7 @@ class FFHQThumbDataset(Dataset):
         self.root_dir=root_dir  
         self.labels_dir = os.path.join (root_dir, 'json')
         self.train=train
-        self.num_validation=4050
+        self.num_validation=10050
         
     def __len__(self):
         if (self.train):

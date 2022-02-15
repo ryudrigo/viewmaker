@@ -15,7 +15,7 @@ class FFHQThumbDataset(Dataset):
         self.root_dir=root_dir  
         self.labels_dir = os.path.join (root_dir, 'json')
         self.train=train
-        self.num_validation=4050
+        self.num_validation=8050
         
     def __len__(self):
         if (self.train):
@@ -25,7 +25,7 @@ class FFHQThumbDataset(Dataset):
             
     def __getitem__(self, idx):
         if not self.train:
-            idx+= len([name for name in os.listdir(self.labels_dir)])- self.num_validation - 1
+            idx+= len([name for name in os.listdir(self.labels_dir)])- self.num_validation - 2
             
         if torch.is_tensor(idx):
             idx = idx.tolist()

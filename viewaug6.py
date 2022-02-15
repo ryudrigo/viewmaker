@@ -1,4 +1,3 @@
-from src.systems.image_systems import PretrainViewMakerSystem
 import torch
 from torchvision.datasets import FashionMNIST
 from torch.utils.data import DataLoader
@@ -23,12 +22,21 @@ transform = T.ToPILImage()
 minibatch = []
 for i, batch in enumerate(iter(data_loader)):
     minibatch.append(batch[0])
-    if i>2:
+    if i>3:
         break
         
 minibatch = torch.cat(minibatch)
-x, y, layer_list, imgs1, imgs2 = model.generate_backbone_activations(minibatch)
+x, y, imgs1, imgs2 = model.generate_backbone_activations(minibatch)
+print ('x-shape')
+print (x.shape)
 
+print ('y-shape')
+print (y.shape)
+
+print('y-hat')
+print (model(x))
+print ('y-true')
+print (y)
 
 for i, (img1, img2) in enumerate(zip (imgs1, imgs2)):
     img1 = transform(img1)
