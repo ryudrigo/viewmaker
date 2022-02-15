@@ -156,7 +156,7 @@ class Ranking (pl.LightningModule):
         
     def get_activations(self):
         big_list_of_acts=[]
-        list_of_names=[] #this is for pairing up activations and their layers.
+        list_of_names=[self.first_layer_name] #this is for pairing up activations and their layers.
         for activations in self.many_activations:
             list_of_acts = [activations[self.first_layer_name].mean(dim=(-2, -1))]
             for ra, name in enumerate(list(activations.keys())):
@@ -166,7 +166,8 @@ class Ranking (pl.LightningModule):
                     act=torch.chunk(act, num_of_feat_maps//64, dim=-1)
                     list_of_acts+=act
                     if len(list_of_names)<61: #there are 61 layer chunks in total
-                        list_of_names.append(name)
+                        for _ in range (num_of_feat_maps//64):
+                            list_of_names.append(name)
             list_of_acts = torch.cat(list_of_acts, dim=1)
             big_list_of_acts.append (list_of_acts)
         answer = torch.stack(big_list_of_acts)

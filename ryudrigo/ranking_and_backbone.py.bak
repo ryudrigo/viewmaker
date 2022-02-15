@@ -156,7 +156,7 @@ class Ranking (pl.LightningModule):
         
     def get_activations(self):
         big_list_of_acts=[]
-        list_of_names=[] #this is for pairing up activations and their layers.
+        list_of_names=[self.first_layer_name] #this is for pairing up activations and their layers.
         for activations in self.many_activations:
             list_of_acts = [activations[self.first_layer_name].mean(dim=(-2, -1))]
             for ra, name in enumerate(list(activations.keys())):
@@ -248,6 +248,6 @@ class Ranking (pl.LightningModule):
         return optim
     
 if __name__ == "__main__":
-    trainer = pl.Trainer(gpus='0', max_epochs=50)
+    trainer = pl.Trainer(gpus='0', max_epochs=5)
     model = Ranking()
     trainer.fit (model)
