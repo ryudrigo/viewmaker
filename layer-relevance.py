@@ -11,14 +11,17 @@ def my_collate(batch):
     target = torch.LongTensor(target)
     return [data, target]
 
-checkpoint = torch.load('lightning_logs/version_54/checkpoints/epoch=1.ckpt')
+#contrast checkpoint = torch.load('lightning_logs/version_54/checkpoints/epoch=1.ckpt')
+#rotation checkpoint = torch.load('lightning_logs/version_55/checkpoints/epoch=4.ckpt')
+#saturation checkpoint = torch.load('lightning_logs/version_57/checkpoints/epoch=1.ckpt')
+checkpoint = torch.load('lightning_logs/version_58/checkpoints/epoch=0.ckpt')
 ranking = Ranking()
 ranking.load_state_dict(checkpoint['state_dict'], strict=False)
 dataset = FFHQThumbDataset('data/ffhq-thumb')
 data_loader = DataLoader(dataset, batch_size=128,collate_fn=my_collate)
 
 all_acts = {}
-sample_size=128
+sample_size=32
 for i, batch in enumerate(iter(data_loader)):
     if i>=sample_size:
         break
@@ -74,3 +77,5 @@ for impact in layer_mean_impact:
 print ('layer_max_impact:')
 for impact in layer_max_impact:
     print (float(impact))
+for name in all_acts.keys():
+    print (name)

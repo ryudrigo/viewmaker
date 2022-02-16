@@ -180,25 +180,89 @@ class Ranking (pl.LightningModule):
         self.many_activations=[]
         return answer, list_of_names #list_of_names can be used when loding model from another script
     
+    def generate_saturated_imgs(self, img):
+        aug_value1=0
+        aug_value2=0
+        while (abs(aug_value1-aug_value2)<0.2):
+            aug_value1 = random.uniform(0.5, 1.5)
+            aug_value2 = random.uniform(0.5, 1.5)
+        img1 = TF.adjust_saturation(img, aug_value1)
+        img2 = TF.adjust_saturation(img, aug_value2)            
+        img1 = TF.resize(img1, 180)
+        img2 = TF.resize(img2, 180)
+        img1 = TF.center_crop(img1, 128)
+        img2 = TF.center_crop(img2, 128)
+        if aug_value1>aug_value2:
+            y_value = 1.
+        else:
+            y_value = 0.
+        return img1, img2, y_value
+    
+    def generate_contrasted_imgs(self, img):
+        aug_value1=0
+        aug_value2=0
+        while (abs(aug_value1-aug_value2)<0.2):
+            aug_value1 = random.uniform(0.5, 1.5)
+            aug_value2 = random.uniform(0.5, 1.5)
+        img1 = TF.adjust_contrast(img, aug_value1)
+        img2 = TF.adjust_contrast(img, aug_value2)            
+        img1 = TF.resize(img1, 180)
+        img2 = TF.resize(img2, 180)
+        img1 = TF.center_crop(img1, 128)
+        img2 = TF.center_crop(img2, 128)
+        if aug_value1>aug_value2:
+            y_value = 1.
+        else:
+            y_value = 0.
+        return img1, img2, y_value
+    
+    def generate_rotated_imgs(self, img):
+        aug_value1=0
+        aug_value2=0
+        while (abs(aug_value1-aug_value2)<5):
+            aug_value1 = random.uniform(-60, 60)
+            aug_value2 = random.uniform(-60, 60)
+        img1 = TF.rotate(img, aug_value1, expand=False)
+        img2 = TF.rotate(img, aug_value2, expand=False)  
+        img1 = TF.resize(img1, 180)
+        img2 = TF.resize(img2, 180)
+        img1 = TF.center_crop(img1, 128)
+        img2 = TF.center_crop(img2, 128)
+        if aug_value1>aug_value2:
+            y_value = 1.
+        else:
+            y_value = 0.
+        return img1, img2, y_value
+        
+    def generate_abs_rotated_imgs(self, img):
+        aug_value1=0
+        aug_value2=0
+        while abs(abs(aug_value1)-abs(aug_value2))<5:
+            aug_value1 = random.uniform(-60, 60)
+            aug_value2 = random.uniform(-60, 60)
+        img1 = TF.rotate(img, aug_value1, expand=False)
+        img2 = TF.rotate(img, aug_value2, expand=False)  
+        img1 = TF.resize(img1, 180)
+        img2 = TF.resize(img2, 180)
+        img1 = TF.center_crop(img1, 128)
+        img2 = TF.center_crop(img2, 128)
+        if abs(aug_value1)>abs(aug_value2):
+            y_value = 1.
+        else:
+            y_value = 0.
+        return img1, img2, y_value    
+   
+    
     def generate_backbone_activations(self, imgs):
         x=[]
         y=[]
         imgs1=[]
         imgs2=[]
         for img in imgs:          
-            aug_value1=0
-            aug_value2=0
-            while (abs(aug_value1-aug_value2)<0.2):
-                aug_value1 = random.uniform(0.5, 1.5)
-                aug_value2 = random.uniform(0.5, 1.5)
-            img1 = TF.adjust_contrast(img, aug_value1)
-            img2 = TF.adjust_contrast(img, aug_value2)            
+            img1, img2, y_value = self.generate_abs_rotated_imgs(img)
             imgs1.append(img1)
             imgs2.append(img2)
-            if aug_value1>aug_value2: 
-                y.append(1.)
-            else: #angles will never be equal becasue they need a difference larger than 5
-                y.append(0.)
+            y.append(y_value)
         imgs1 = torch.stack(imgs1)
         imgs2 = torch.stack(imgs2)
         self.backbone(imgs1)
@@ -249,6 +313,6 @@ class Ranking (pl.LightningModule):
         return optim
     
 if __name__ == "__main__":
-    trainer = pl.Trainer(gpus='0', max_epochs=5)
+    trainer = pl.Trainer(gpus='0', max_epochs=50)
     model = Ranking()
     trainer.fit (model)
