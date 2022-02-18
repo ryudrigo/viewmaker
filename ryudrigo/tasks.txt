@@ -6,6 +6,6 @@ OK	complete RankingAndBackbone`s forward step by passing the two versions throug
 OK	complete RankingAndBackbone`s training and validation steps
 OK	make it train faster!
 OK	do some sanity tests
-	extract relevance information from the ranking model (multiply the standard deviation and activations?)
-	replace the augmentation with class-specific information and see what happens
+OK	extract relevance information from the ranking model (multiply the standard deviation and activations?)
+OK	replace the augmentation with class-specific information and see what happens
 		
